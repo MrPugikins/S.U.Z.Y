@@ -1,0 +1,67 @@
+import discord
+from discord.ext import commands
+from datetime import datetime, timedelta
+
+# Your bot token
+BOT_TOKEN = "YOUR_BOT_TOKEN"
+
+# Channel ID to scrape messages from
+TARGET_CHANNEL_ID = 123456789012345678  # Replace with your channel ID
+
+# Set up intents (important for accessing messages)
+intents = discord.Intents.default()
+intents.messages = True
+intents.guilds = True
+intents.message_content = True
+
+# Initialize bot
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+# Dictionary to store messages
+message_data = {}
+
+@bot.event
+async def on_ready():
+    print(f"Logged in as {bot.user}")
+    channel = bot.get_channel(TARGET_CHANNEL_ID)
+    
+    if channel is None:
+        print("Invalid channel ID! Ensure the bot has access to the channel.")
+        return
+    
+    print(f"Fetching messages from #{channel.name} (past 6 months)...")
+    six_months_ago = datetime.utcnow() - timedelta(days=180)
+
+    # Fetch messages
+    async for message in channel.history(limit=None, after=six_months_ago):
+        username = message.author.name
+        content = message.content
+
+        # Skip messages with no content (e.g., embeds, attachments)
+        if not content:
+            continue
+
+        # Add message to dictionary
+        if username not in message_data:
+            message_data[username] = []
+        message_data[username].append(content)
+
+    # Output to console
+    print("Message scraping complete!")
+    for user, messages in message_data.items():
+        print(f"\n{user}:")
+        for msg in messages:
+            print(f"  - {msg}")
+    
+    # Optionally save to file
+    with open("discord_messages.py", "w", encoding="utf-8") as f:
+        f.write("message_data = {\n")
+        for user, messages in message_data.items():
+            f.write(f'    "{user}": {messages},\n')
+        f.write("}\n")
+    
+    print("Messages saved to discord_messages.py")
+    await bot.close()
+
+# Run the bot
+bot.run(BOT_TOKEN)
